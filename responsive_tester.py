@@ -2,23 +2,40 @@ import math
 import time
 from selenium import webdriver
 from webdriver_manager.chrome import ChromeDriverManager
+from util import make_dir
 
-BROWSER_HEIGHT = 1027
 
-browser = webdriver.Chrome(ChromeDriverManager().install())
+class ResponsiveTester:
 
-browser.get("https://nomadcoders.co")
-browser.maximize_window()
+    def __init__(self, urls):
+        self.sizes = [480, 960, 1366, 1920]
+        self.browser_height = 1027
+        self.browser = webdriver.Chrome(ChromeDriverManager().install())
+        self.browser.maximize_window()
+        self.urls = urls
+        self.dir = 'responsive_test_result'
+        make_dir(f'./{self.dir}')
 
-sizes = [480, 960, 1366, 1920]
+    def screenshot(self, url):
+        self.browser.get(url)
 
-for size in sizes:
-    browser.set_window_size(size, BROWSER_HEIGHT)
-    time.sleep(3)
+        for size in self.sizes:
+            self.browser.set_window_size(size, self.browser_height)
+            time.sleep(3)
+            scroll_size = self.browser.execute_script(
+                "return document.body.scrollHeight")
+            total_section = math.ceil(scroll_size / self.browser_height)
+            for section in range(total_section):
+                self.browser.execute_script(
+                    f"window.scrollTo(0, {(section) * self.browser_height})")
+                time.sleep(2)
+                self.browser.save_screenshot(
+                    f"{self.dir}/{size}x{section}.png")
 
-    scroll_size = browser.execute_script("return document.body.scrollHeight")
-    total_section = math.ceil(scroll_size / BROWSER_HEIGHT)
-    for section in range(total_section):
-        browser.execute_script(
-            f"window.scrollTo(0, {(section) * BROWSER_HEIGHT})")
-        time.sleep(2)
+    def start(self):
+        for url in self.urls:
+            self.screenshot(url)
+
+
+urls = ['https://nomadcoders.co/']
+ResponsiveTester(urls).start()

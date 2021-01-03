@@ -6,12 +6,15 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
+from util import make_dir
+
 
 class GoogleSearchResultScreenshooter:
     def __init__(self, keyword, save_dir):
         self.browser = webdriver.Chrome(ChromeDriverManager().install())
         self.keyword = keyword
         self.save_dir = save_dir
+        make_dir(f'./{save_dir}')
 
     def start(self):
         self.browser.get('https://google.com')
