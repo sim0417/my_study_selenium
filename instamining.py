@@ -8,68 +8,71 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-from util import make_dir
 
-url = "https://www.instagram.com/explore/tags/"
-start_tag = "dog"
-max_hastags = 15
-counted_hastags = []
-used_hastags = []
+class Instaminer:
+    def __init__(self, start_tag, max_hashtags):
+        self.browser = webdriver.Chrome(ChromeDriverManager().install())
+        self.url = "https://www.instagram.com/explore/tags/"
+        self.start_tag = start_tag
+        self.max_hastags = max_hashtags
+        self.counted_hastags = []
+        self.used_hastags = []
+        
+    def wait_for(self, locator, duration = 10):
+        return WebDriverWait(self.browser, duration).until(EC.presence_of_element_located(locator))
 
-browser = webdriver.Chrome(ChromeDriverManager().install())
+    def clean_hashtag(self, hashtag):
+        return hashtag[1:]
 
-def wait_for(locator, duration = 10):
-    return WebDriverWait(browser, duration).until(EC.presence_of_element_located(locator))
+    def save_csv(self):
+        file = open(f"{self.start_tag}-report.csv", "w")
+        writer = csv.writer(file)
+        writer.writerow(["Hashtag", "Post Count"])
 
-def clean_hashtag(hashtag):
-    return hashtag[1:]
+        for hashtag in self.counted_hastags:
+            writer.writerow(hashtag)
 
-def extract_data():
-    hashtag_name = wait_for((By.TAG_NAME, "h1"), 10)
-    post_count = wait_for((By.CLASS_NAME, "g47SY"), 10)
-    if post_count:
-        post_count = int(post_count.text.replace(",",""))
-    
-    if hashtag_name:
-        hashtag_name = clean_hashtag(hashtag_name)
+    def start(self):
+        self.get_related(self.url + self.start_tag)
 
-    if hashtag_name and post_count:
-        if hashtag_name not in used_hastags:
-            counted_hastags.append((hashtag_name, post_count))
-            used_hastags.append(hashtag_name)
+    def extract_data(self):
+        hashtag_name = self.wait_for((By.TAG_NAME, "h1"), 10)
+        post_count = self.wait_for((By.CLASS_NAME, "g47SY"), 10)
+        if post_count:
+            post_count = int(post_count.text.replace(",",""))
+        
+        if hashtag_name:
+            hashtag_name = self.clean_hashtag(hashtag_name)
 
-def get_related(target_url):
-    browser.get(target_url)
-    header = wait_for((By.TAG_NAME, "header"), 10)
-    hashtags = header.find_element_by_class_name("AC7dP")
+        if hashtag_name and post_count:
+            if hashtag_name not in self.used_hastags:
+                self.counted_hastags.append((hashtag_name, post_count))
+                self.used_hastags.append(hashtag_name)
 
-    for hashtag in hashtags:
-       hashtag_name = clean_hashtag(hashtag.text)
-       if hashtag_name not in used_hastags:
-           ActionChains(browser).key_down(Keys.COMMAND).click(hashtag).perform()
+    def get_related(self, target_url):
+        self.browser.get(target_url)
+        header = self.wait_for((By.TAG_NAME, "header"), 10)
+        hashtags = header.find_element_by_class_name("AC7dP")
+
+        for hashtag in hashtags:
+            hashtag_name = self.clean_hashtag(hashtag.text)
+            if hashtag_name not in self.used_hastags:
+                ActionChains(self.browser).key_down(Keys.COMMAND).click(hashtag).perform()
+
+        for window in self.browser.window_handles:
+            self.browser.switch_to.window(window)
+            self.extract_data()
+            time.sleep(1)
+
+        if len(self.used_hastags) < self.max_hastags:
+            for window in self.browser.window_handles:
+                self.browser.switch_to.window(window)
+                self.browser.close()
+            self.browser.switch_to.window(self.browser.window_handles[0])
+            self.get_related(self.browser.current_url)
+        else:
+            self.browser.quit()
+            self.save_csv()
 
 
-    for window in browser.window_handles:
-        browser.switch_to.window(window)
-        extract_data()
-        time.sleep(1)
-
-    if len(used_hastags) < max_hastags:
-        for window in browser.window_handles:
-            browser.switch_to.window(window)
-            browser.close()
-        browser.switch_to.window(browser.window_handles[0])
-        get_related(browser.current_url)
-
-
-get_related(url + start_tag)
-print(counted_hastags) 
-
-file = open(f"{start_tag}-report.csv", "w")
-writer = csv.writer(file)
-writer.writerow(["Hashtag", "Post Count"])
-
-for hashtag in counted_hastags:
-    writer.writerow(hashtag)
-
-browser.quit()
+Instaminer("dog", 15).start()
