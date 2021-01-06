@@ -1,5 +1,6 @@
 from logging import setLogRecordFactory
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
@@ -11,7 +12,9 @@ from util import make_dir
 
 class GoogleSearchResultScreenshooter:
     def __init__(self, keyword, save_dir):
-        self.browser = webdriver.Chrome(ChromeDriverManager().install())
+        options = Options()
+        options.add_argument("--headless")
+        self.browser = webdriver.Chrome(ChromeDriverManager().install(), options=options)
         self.keyword = keyword
         self.save_dir = save_dir
         make_dir(f'./{save_dir}')
